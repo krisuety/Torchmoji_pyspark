@@ -12,11 +12,9 @@ from torchmoji.model_def import torchmoji_emojis
 from torchmoji.global_variables import PRETRAINED_PATH, VOCAB_PATH
 from pyspark.sql.functions import udf
 from pyspark.sql.functions import col
-#d = [{'content': 'This is shit'}, {'content': 'I love you'}]
 from pyspark.sql.session import SparkSession
 
 SPARK = SparkSession.builder.getOrCreate()
-#df = SPARK.createDataFrame(d)
 EMOJIS = ":joy: :unamused: :weary: :sob: :heart_eyes: \
 :pensive: :ok_hand: :blush: :heart: :smirk: \
 :grin: :notes: :flushed: :100: :sleeping: \
@@ -73,19 +71,31 @@ kafka_df_string_2 = kafka_df_string.select(col("value"))
 
 new = kafka_df_string_2.withColumn("emoji", get_emoji(kafka_df_string_2.value))
 
+fin = new.select(explode(split('emoji', ' ')).alias('emoji'))
+
+kafka_moji_count = fin.groupBy('emoji').count().withColumnRenamed('count', 'moji_count').orderBy(col('count').desc())
+
+
+#result = kafka_df_string_2.select(get_emoji(col('value')))
+#result = [r['<lambda>(content)'] for r in result]
+#print(result)
 
 
 
-output = new.writeStream.outputMode("append").format("console").option("truncate", "false").trigger(processingTime="3 seconds").start()
 
-#def send_df_to_dashboard(df, id):
-#    tag = [str(t.value) for t in df.select("value").take(10)]
-    #url = 'http://localhost:8050/update_data'
-    #request_data = {'value' : str(value)} #request_data = {'tag': str(tag), 'tag_count': str(tag_count)}
-    #print('update dashboard')
-    #response = requests.post(url, data=request_data)
+output = kafka_moji_count.writeStream.outputMode("complete").format("console").option("truncate", "false").trigger(processingTime="3 seconds").start()
+#output = new.writeStream.outputMode("append").format("console").option("truncate", "false").trigger(processingTime="3 seconds").start()
+#output = result.writeStream.outputMode("append").format("console").option("truncate", "false").trigger(processingTime="3 seconds").start()
 
-#kafka_df_string_2.writeStream.outputMode("complete").foreachBatch(send_df_to_dashboard).trigger(processingTime="3 seconds").start()
+def send_df_to_dashboard(df, id):
+    emoji = [str(t.emoji) for t in df.select("emoji").take(10)]
+    moji_count = [str(t.moji_count) for t in df.select("moji_count").take(10)]
+    url = 'http://localhost:8050/update_data'
+    request_data = {'emoji' : str(emoji), 'moji_count' : str(moji_count)} #request_data = {'tag': str(tag), 'tag_count': str(tag_count)}
+    print('update dashboard')
+    response = requests.post(url, data=request_data)
+
+kafka_moji_count.writeStream.outputMode("complete").foreachBatch(send_df_to_dashboard).trigger(processingTime="3 seconds").start()
 
 #def send_df_to_dashboard(df, id):
 #    tag = [str(t.value) for t in df.select("value").take(10)]
