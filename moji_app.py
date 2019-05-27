@@ -63,7 +63,7 @@ def update_graph_live(n):
                     width=0.2)
         ],
         'layout': {
-            'title': 'Dash Data Visualization 13'
+            'title': 'Count Emoji'
         }
     }
     return figure
