@@ -76,16 +76,7 @@ fin = new.select(explode(split('emoji', ' ')).alias('emoji'))
 kafka_moji_count = fin.groupBy('emoji').count().withColumnRenamed('count', 'moji_count').orderBy(col('count').desc())
 
 
-#result = kafka_df_string_2.select(get_emoji(col('value')))
-#result = [r['<lambda>(content)'] for r in result]
-#print(result)
-
-
-
-
 output = kafka_moji_count.writeStream.outputMode("complete").format("console").option("truncate", "false").trigger(processingTime="3 seconds").start()
-#output = new.writeStream.outputMode("append").format("console").option("truncate", "false").trigger(processingTime="3 seconds").start()
-#output = result.writeStream.outputMode("append").format("console").option("truncate", "false").trigger(processingTime="3 seconds").start()
 
 def send_df_to_dashboard(df, id):
     emoji = [str(t.emoji) for t in df.select("emoji").take(10)]
@@ -97,21 +88,6 @@ def send_df_to_dashboard(df, id):
 
 kafka_moji_count.writeStream.outputMode("complete").foreachBatch(send_df_to_dashboard).trigger(processingTime="3 seconds").start()
 
-#def send_df_to_dashboard(df, id):
-#    tag = [str(t.value) for t in df.select("value").take(10)]
-    #url = 'http://localhost:8050/update_data'
-    #request_data = {'value' : str(value)} #request_data = {'tag': str(tag), 'tag_count': str(tag_count)}
-    #print('update dashboard')
-    #response = requests.post(url, data=request_data)
-
-#kafka_df_string_2.writeStream.outputMode("complete").foreachBatch(send_df_to_dashboard).trigger(processingTime="3 seconds").start()
-
 output.awaitTermination()
 
 
-
-
-
-#result = df.select(get_emoji(col('content'))).collect()
-#result = [r['<lambda>(content)'] for r in result]
-#print(result)
